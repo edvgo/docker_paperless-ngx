@@ -1,0 +1,53 @@
+services:
+  broker:
+    image: ${REDIS_IMAGE}
+    restart: always
+    networks: [paperless_net]
+    volumes:
+      - ${PNX_BASE_DIR}/redisdata:/data
+
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:${PNGX_TAG}
+    restart: always
+    depends_on: [broker]
+    networks: [proxy, sec_backbone_dbnet, paperless_net]
+#    labels:
+#     - traefik.enable=true
+#      - traefik.http.routers.paperless.rule=Host(`paperless.danzebrink.de`)
+#      - traefik.http.routers.paperless.entrypoints=websecure
+#      - traefik.http.routers.paperless.tls.certresolver=do
+#      - traefik.http.services.paperless.loadbalancer.server.port=8000
+#      - traefik.http.routers.paperless.middlewares=sec@docker
+    env_file:
+      - compose.env
+      - secrets.env
+    volumes:
+      - ${PNX_BASE_DIR}/data:/usr/src/paperless/data:rw
+      - ${PNX_BASE_DIR}/media:/usr/src/paperless/media:rw
+      - ${PNX_BASE_DIR}/media/export:/usr/src/paperless/export:rw
+      - ${PNX_BASE_DIR}/media/consume:/usr/src/paperless/consume:rw
+  paperless-gpt:
+    image: icereed/paperless-gpt:latest
+    restart: no
+    depends_on: [webserver]
+    networks: [proxy, paperless_net]
+    labels:
+#      - traefik.enable=true
+#      - traefik.http.routers.paperlessgpt.rule=Host(`paperlessgpt.danzebrink.de`)
+#      - traefik.http.routers.paperlessgpt.entrypoints=websecure
+#      - traefik.http.routers.paperlessgpt.tls.certresolver=do
+#      - traefik.http.services.paperlessgpt.loadbalancer.server.port=8080
+#      - traefik.http.routers.paperlessgpt.middlewares=sec@docker
+    env_file:
+      - compose.env
+      - secrets.env
+    volumes:
+      - ${PNX_BASE_DIR}/extensions/prompts:/app/prompts
+
+networks:
+  proxy:
+    external: true
+  sec_backbone_dbnet:
+    external: true
+  paperless_net:
+    driver: bridge
